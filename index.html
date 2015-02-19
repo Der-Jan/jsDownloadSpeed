@@ -1,0 +1,39 @@
+<html>
+<head>
+<title>Jans Download Test</title>
+<script>
+	var startTime,loadedImages,toLoad;
+	var imgSize = 2990713;
+        function addImg(e){
+		imgdiv = document.getElementById("hiddenimg");
+		startTime=new Date();
+		loadedImages=0;
+		toLoad=24;
+		for (i=0;i<toLoad;i++) {
+		img = document.createElement("img");
+		img.addEventListener("load", function(e) {
+			loadedImages++;
+			if ( loadedImages % 6 == 0)
+			document.getElementById("result").innerHTML += "<br/> Took " + ( e.timeStamp - startTime.getTime() )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( e.timeStamp - startTime.getTime() ))/10 + "MBit/s" ;
+			e.target.src = "";
+		}, true);
+		img.addEventListener("error", function(e) {
+		//	document.getElementById("result").innerHTML += "Error: " + e;
+		});
+		document.getElementById("result").innerHTML = "Los gehts: " + startTime;
+		imgdiv.appendChild(img);
+		img.src = "passbild.jpg?"+i+Math.random();
+		img.width = 100;
+		}
+	};
+</script>
+</head>
+<body onload="addImg()">
+<h1>Jans Download Test</h1>
+<div id='result'>
+Hallo
+</div>
+<div id='hiddenimg' style="display:none">
+</div>
+</body>
+</html>
