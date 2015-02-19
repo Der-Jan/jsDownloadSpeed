@@ -2,31 +2,39 @@
 <head>
 <title>Jans Download Test</title>
 <script>
-	var startTime,loadedImages,toLoad;
+	var startTime;
 	var imgSize = 2990713;
-        function addImg(e){
-		loadedImages=0;
-		toLoad=24;
-		for (i=0;i<toLoad;i++) {
+	var maxConc = 6;
+	var currentlyLoading = 0;
+	var minMillis = 8000;
+	var loadedImages=0;
+	var maxLoad=42;
+        function addImg(){
+		while ((currentlyLoading<maxConc) && (loadedImages + currentlyLoading < maxLoad)) {
+		currentlyLoading++;
 		img = new XMLHttpRequest();
 		img.addEventListener("load", function(e) {
 			if (this.status == 200) {
+				currentlyLoading--;
 				loadedImages++;
+				curTime = Date.now();	
+				this.blob = null;
+				if ( curTime - startTime < minMillis){
+					addImg();	
+				}
 				if ( loadedImages % 6 == 0) {
-					curTime = Date.now();	
 					document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
 				}
 				document.getElementById("progress").innerHTML += ".";
-				this.blob = null;
 			}
 		}, true);
 		img.addEventListener("error", function(e) {
 		//	document.getElementById("result").innerHTML += "Error: " + e;
 		});
-		img.open("GET", "passbild.jpg?"+i+Math.random(), true);
+		img.open("GET", "passbild.jpg?"+loadedImages+Math.random(), true);
 		img.responseType = "blob";
 		img.send();
-		if (i == 0) startTime=Date.now();
+		if (loadedImages == 0) startTime=Date.now();
 		}
 	};
 </script>
