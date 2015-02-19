@@ -5,7 +5,6 @@
 	var startTime,loadedImages,toLoad;
 	var imgSize = 2990713;
         function addImg(e){
-		startTime=new Date();
 		loadedImages=0;
 		toLoad=24;
 		for (i=0;i<toLoad;i++) {
@@ -13,9 +12,11 @@
 		img.addEventListener("load", function(e) {
 			if (this.status == 200) {
 				loadedImages++;
-				document.getElementById("result").innerHTML += ".";
-				if ( loadedImages % 6 == 0)
-				document.getElementById("result").innerHTML += " Took " + ( e.timeStamp - startTime.getTime() )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( e.timeStamp - startTime.getTime() ))/10 + "MBit/s<br/>" ;
+				if ( loadedImages % 6 == 0) {
+					curTime = Date.now();	
+					document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
+				}
+				document.getElementById("progress").innerHTML += ".";
 				this.blob = null;
 			}
 		}, true);
@@ -25,15 +26,16 @@
 		img.open("GET", "passbild.jpg?"+i+Math.random(), true);
 		img.responseType = "blob";
 		img.send();
+		if (i == 0) startTime=Date.now();
 		}
 	};
 </script>
 </head>
 <body onload="addImg()">
 <h1>Jans Download Test</h1>
-<div id='result'>
+<div id='progress'>
 </div>
-<div id='hiddenimg' style="display:none">
+<div id='result'>
 </div>
 </body>
 </html>
