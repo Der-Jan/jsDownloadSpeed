@@ -2,13 +2,13 @@
 <head>
 <title>Jans Download Test</title>
 <script>
-	var startTime;
+	var startTime = 0;
 	var imgSize = 2990713;
 	var maxConc = 6;
 	var currentlyLoading = 0;
 	var minMillis = 8000;
 	var loadedImages=0;
-	var maxLoad=42;
+	var maxLoad=84;
         function addImg(){
 		while ((currentlyLoading<maxConc) && (loadedImages + currentlyLoading < maxLoad)) {
 		currentlyLoading++;
@@ -19,13 +19,16 @@
 				loadedImages++;
 				curTime = Date.now();	
 				this.blob = null;
+				document.getElementById("progress").innerHTML += ".";
 				if ( curTime - startTime < minMillis){
 					addImg();	
+				} else {
+					if (currentlyLoading == 0)
+						document.getElementById("progress").innerHTML += "Done!";
 				}
 				if ( loadedImages % 6 == 0) {
 					document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
 				}
-				document.getElementById("progress").innerHTML += ".";
 			}
 		}, true);
 		img.addEventListener("error", function(e) {
@@ -34,12 +37,28 @@
 		img.open("GET", "passbild.jpg?"+loadedImages+Math.random(), true);
 		img.responseType = "blob";
 		img.send();
-		if (loadedImages == 0) startTime=Date.now();
+		if (startTime == 0) startTime=Date.now();
+		}
+	};
+	function addSmallImg() {
+		for (currentlyLoading = 0; currentlyLoading < maxConc; currentlyLoading++) {
+			img = new XMLHttpRequest();
+			img.addEventListener("load", function(e) {
+				if (this.status == 200) {
+					currentlyLoading--;
+					this.blob = null;
+					document.getElementById("progress").innerHTML += "+";
+					addImg();	
+				}
+			}, true);
+			img.open("GET", "small.jpg?"+loadedImages+Math.random(), true);
+			img.responseType = "blob";
+			img.send();
 		}
 	};
 </script>
 </head>
-<body onload="addImg()">
+<body onload="addSmallImg()">
 <h1>Jans Download Test</h1>
 <div id='progress'>
 </div>
