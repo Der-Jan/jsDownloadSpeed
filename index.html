@@ -8,29 +8,43 @@
 	var currentlyLoading = 0;
 	var minMillis = 8000;
 	var loadedImages=0;
+	var inProgressImages=0;
 	var maxLoad=84;
+	var bytesPerImage = [];
+	function updateSpeed(curTime) {
+		document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
+	}
         function addImg(){
 		while ((currentlyLoading<maxConc) && (loadedImages + currentlyLoading < maxLoad)) {
 		currentlyLoading++;
+		inProgressImages++;
 		img = new XMLHttpRequest();
+		img.imgID=inProgressImages;
 		img.addEventListener("load", function(e) {
 			if (this.status == 200) {
 				currentlyLoading--;
 				loadedImages++;
 				curTime = Date.now();	
 				this.blob = null;
-				document.getElementById("progress").innerHTML += ".";
+				document.getElementById("progress").innerHTML += this.imgID + ".";
 				if ( curTime - startTime < minMillis){
 					addImg();	
 				} else {
-					if (currentlyLoading == 0)
+					if (currentlyLoading == 0) {
 						document.getElementById("progress").innerHTML += "Done!";
-				}
-				if ( loadedImages % 6 == 0) {
-					document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
+						updateSpeed(curTime);
+					}
 				}
 			}
 		}, true);
+		img.addEventListener("progress", function(e) {
+			curTime = Date.now();
+			bytesPerImage[this.imgID] = e.loaded;
+			currentData = 0;
+			for (i in bytesPerImage) currentData += bytesPerImage[i];
+			document.getElementById("curspeed").innerHTML = (8000*currentData/1024/1024/( curTime - startTime )).toFixed(2) + "MBit/s" ;
+			
+		});
 		img.addEventListener("error", function(e) {
 		//	document.getElementById("result").innerHTML += "Error: " + e;
 		});
@@ -48,7 +62,7 @@
 					currentlyLoading--;
 					this.blob = null;
 					document.getElementById("progress").innerHTML += "+";
-					addImg();	
+					if (currentlyLoading == 0) addImg();	
 				}
 			}, true);
 			img.open("GET", "small.jpg?"+loadedImages+Math.random(), true);
@@ -61,6 +75,9 @@
 <body onload="addSmallImg()">
 <h1>Jans Download Test</h1>
 <div id='progress'>
+</div>
+<div id='curspeed'>
+0.00 MBit/s
 </div>
 <div id='result'>
 </div>
