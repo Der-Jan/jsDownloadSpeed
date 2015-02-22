@@ -17,16 +17,19 @@
 	var maxLoad=84;
 	var bytesPerImage = [];
 	var smallInProgress;
-	var dps;
+	var avgRate;
+	var burstRate;
 	var chart;
-	var downloadProgress = [];
-        var chartUpdate = null;
+	var downldProgress;
+	var chartUpdate = null;
 	var xmlReqs = [];
 	var timerMaxDur = null;
 	var largeFile="random.bin";
 	
 	function setupChart() {
-		dps = [{x: 0, y: 0}];
+		avgRate = [{x: 0, y: 0}];
+		burstRate = [{x: 0, y: 0}];
+		downldProgress = [{x: 0, y: 0}];
 		chart = new CanvasJS.Chart("chartContainer",{
 			title :{
 				text: "0.00 MBit/s"
@@ -42,13 +45,30 @@
 			},
 			data: [{
 				type: "line",
-				dataPoints : dps
+				legendText: "Avg",
+				showInLegend: true,
+				dataPoints : avgRate
+			},{
+				type: "line",
+				legendText: "Avg 200ms",
+				showInLegend: true,
+				dataPoints : burstRate
 			}]
 			});
 		chart.render();
 		if (chartUpdate != null) clearInterval(chartUpdate);
 		chartUpdate = setInterval(function() {
-			chart.options.title.text = dps[dps.length-1].y.toFixed(2) + " MBit/s";
+			chart.options.title.text = avgRate[avgRate.length-1].y.toFixed(2) + " MBit/s";
+			var len = downldProgress.length - 1;
+			var hundredMS = len;
+			if (hundredMS > 0) {
+				burstEnd = downldProgress[hundredMS].x;
+				burstEndVolume = downldProgress[hundredMS].y;
+				while (hundredMS>0 && downldProgress[hundredMS].x>(burstEnd-200)) hundredMS--;
+				burstRate.push({ x: (downldProgress[hundredMS].x/2000+burstEnd/2000) , y: (8000*(burstEndVolume-downldProgress[hundredMS].y)/(burstEnd-downldProgress[hundredMS].x)/1024/1024) });
+			} else {
+				console.warn("No data collected!");
+			}
 			chart.render();
 		}, 100);
 	}
@@ -63,12 +83,11 @@
 			i.abort();
 		}
 		document.getElementById("progress").innerHTML += "Done!";
-		document.getElementById("result").innerHTML += " Took " + downloadProgress[downloadProgress.length-1].x/1000 + "s for " + (downloadProgress[downloadProgress.length-1].y/1024/1024).toFixed(2) + "MB - rate is " + (8000*downloadProgress[downloadProgress.length-1].y/1024/1024/downloadProgress[downloadProgress.length-1].x).toFixed(2) + "MBit/s<br/>" ;
+		document.getElementById("result").innerHTML += " Took " + downldProgress[downldProgress.length-1].x/1000 + "s for " + (downldProgress[downldProgress.length-1].y/1024/1024).toFixed(2) + "MB - rate is " + (8000*downldProgress[downldProgress.length-1].y/1024/1024/downldProgress[downldProgress.length-1].x).toFixed(2) + "MBit/s<br/>" ;
 		startTime = 0;
 		loadedImages = 0;
 		inProgressImages = 0;
 		bytesPerImage = [];
-		downloadProgress = [];
 	}
 
 	function removeFromReqs(req) {
@@ -104,8 +123,8 @@
 			bytesPerImage[this.imgID] = e.loaded;
 			currentData = 0;
 			for (i in bytesPerImage) currentData += bytesPerImage[i];
-			downloadProgress.push({ x: curTime, y: currentData });
-			dps.push({x: curTime /1000, y: 8000*currentData/1024/1024/curTime });
+			downldProgress.push({ x: curTime, y: currentData });
+			avgRate.push({x: curTime /1000, y: 8000*currentData/1024/1024/curTime });
 			
 		});
 		img.addEventListener("error", function(e) {
