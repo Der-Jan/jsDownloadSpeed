@@ -23,7 +23,9 @@
 				text: "Downloadrate"
 			},
 			axisX: {						
-				title: "time in s"
+				title: "time in s",
+				minimum: 0,
+				maximum: 10
 			},
 			axisY: {						
 				title: "MBit/s"
@@ -34,6 +36,7 @@
 			}]
 			});
 		chart.render();
+		setInterval(function() {chart.render();}, 100);
 	}
 	function updateSpeed(curTime) {
 		document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
@@ -68,7 +71,6 @@
 			for (i in bytesPerImage) currentData += bytesPerImage[i];
 			document.getElementById("curspeed").innerHTML = (8000*currentData/1024/1024/( curTime - startTime )).toFixed(2) + "MBit/s" ;
 			dps.push({x: ( curTime - startTime )/1000, y: 8000*currentData/1024/1024/( curTime - startTime )});
-			chart.render();
 			
 		});
 		img.addEventListener("error", function(e) {
