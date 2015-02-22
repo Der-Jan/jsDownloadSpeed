@@ -4,12 +4,10 @@
 <meta charset="utf-8" />
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.2.0/css/bootstrap.min.css">
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css">
-<link rel="stylesheet" href="/js-speedtest/main.css">
-<title>Jans Download Test</title>
+<title>Jan's Download Test</title>
 <script type="text/javascript" src="canvasjs.min.js"></script>
 <script>
 	var startTime = 0;
-	var imgSize = 2990713;
 	var maxConc = 0;
 	var maxConcCheck = 10;
 	var currentlyLoading = 0;
@@ -21,9 +19,11 @@
 	var smallInProgress;
 	var dps;
 	var chart;
+	var downloadProgress = [];
         var chartUpdate = null;
 	var xmlReqs = [];
 	var timerMaxDur = null;
+	var largeFile="random.bin";
 	
 	function setupChart() {
 		dps = [{x: 0, y: 0}];
@@ -54,7 +54,6 @@
 	}
 
 	function stopAll() {
-		var curTime = Date.now();
 		if (chartUpdate != null) clearInterval(chartUpdate);
 		if (timerMaxDur != null) clearTimeout(timerMaxDur);
 		timerMaxDur = null;
@@ -64,11 +63,12 @@
 			i.abort();
 		}
 		document.getElementById("progress").innerHTML += "Done!";
-		document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
+		document.getElementById("result").innerHTML += " Took " + downloadProgress[downloadProgress.length-1].x/1000 + "s for " + (downloadProgress[downloadProgress.length-1].y/1024/1024).toFixed(2) + "MB - rate is " + (8000*downloadProgress[downloadProgress.length-1].y/1024/1024/downloadProgress[downloadProgress.length-1].x).toFixed(2) + "MBit/s<br/>" ;
 		startTime = 0;
 		loadedImages = 0;
 		inProgressImages = 0;
 		bytesPerImage = [];
+		downloadProgress = [];
 	}
 
 	function removeFromReqs(req) {
@@ -100,17 +100,18 @@
 			}
 		}, true);
 		img.addEventListener("progress", function(e) {
-			curTime = Date.now();
+			curTime = Date.now() - startTime;
 			bytesPerImage[this.imgID] = e.loaded;
 			currentData = 0;
 			for (i in bytesPerImage) currentData += bytesPerImage[i];
-			dps.push({x: ( curTime - startTime )/1000, y: 8000*currentData/1024/1024/( curTime - startTime )});
+			downloadProgress.push({ x: curTime, y: currentData });
+			dps.push({x: curTime /1000, y: 8000*currentData/1024/1024/curTime });
 			
 		});
 		img.addEventListener("error", function(e) {
 		//	document.getElementById("result").innerHTML += "Error: " + e;
 		});
-		img.open("GET", "passbild.jpg?"+loadedImages+Math.random(), true);
+		img.open("GET", largeFile+"?"+loadedImages+Math.random(), true);
 		img.responseType = "blob";
 		img.send();
 		if (startTime == 0) {
@@ -119,34 +120,45 @@
 		}
 		}
 	};
-	function addSmallImg() {
+	function updateMaxConc() {
+		active = 0;
+		for (i in smallInProgress) active +=smallInProgress[i];
+		if (active>maxConc) {
+			maxConc = active;
+			document.getElementById("result").innerHTML += "Concurrent max " + maxConc + " connections<br/>";
+		}
+	}
+	function checkConcurrency() {
 		smallInProgress = [];
 		currentlyLoading = 0;
 		setupChart();
+		setTimeout(function (){
+			updateMaxConc();
+			while (i = xmlReqs.pop()) i.abort();
+			currentlyLoading = 0;
+			addImg();
+		}, 1000);
 		for (currentlyLoading = 0; currentlyLoading < 10; currentlyLoading++) {
-			img = new XMLHttpRequest();
-			img.imgID = currentlyLoading;
-			img.addEventListener("load", function(e) {
+			req = new XMLHttpRequest();
+			req.imgID = currentlyLoading;
+			req.addEventListener("load", function(e) {
 				if (this.status == 200) {
 					currentlyLoading--;
-					active = 0;
-					for (i in smallInProgress) active +=smallInProgress[i];
-					if (active>maxConc) {
-						maxConc = active;
-						document.getElementById("result").innerHTML += "Concurrent max " + maxConc + " connections<br/>";
-					}
+					updateMaxConc();
 					smallInProgress[this.imgID]=0;
 					this.blob = null;
 					document.getElementById("progress").innerHTML += "+";
+					removeFromReqs(this);
 					if (currentlyLoading == 0) addImg();	
 				}
 			}, true);
-			img.onprogress = function(e) {
+			req.onprogress = function(e) {
 				smallInProgress[this.imgID]=1;		
 			}
-			img.open("GET", "small.jpg?"+loadedImages+Math.random(), true);
-			img.responseType = "blob";
-			img.send();
+			req.open("GET", largeFile + "?"+loadedImages+Math.random(), true);
+			req.responseType = "blob";
+			req.send();
+			xmlReqs.push(req);
 		}
 	};
 </script>
@@ -162,7 +174,7 @@
 <div id='chartContainer' style='height: 300px; width: 600px;' >
 </div>
 <div id='buttons' >
-<a class='btn btn-primary btn-lg' type='button' onclick='addSmallImg()'>Start</a>
+<a class='btn btn-primary btn-lg' type='button' onclick='checkConcurrency()'>Start</a>
 <a class='btn btn-primary btn-lg' type='button' onclick='stopAll()'>Stop</a>
 </div>
 </body>
