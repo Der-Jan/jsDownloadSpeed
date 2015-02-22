@@ -1,16 +1,40 @@
 <html>
 <head>
 <title>Jans Download Test</title>
+<script type="text/javascript" src="canvasjs.min.js"></script>
 <script>
 	var startTime = 0;
 	var imgSize = 2990713;
-	var maxConc = 6;
+	var maxConc = 0;
+	var maxConcCheck = 10;
 	var currentlyLoading = 0;
 	var minMillis = 8000;
 	var loadedImages=0;
 	var inProgressImages=0;
 	var maxLoad=84;
 	var bytesPerImage = [];
+	var smallInProgress = [];
+	var dps = [{x: 0, y: 0}];
+	var chart;
+	
+	function setupChart() {
+		chart = new CanvasJS.Chart("chartContainer",{
+			title :{
+				text: "Downloadrate"
+			},
+			axisX: {						
+				title: "time in s"
+			},
+			axisY: {						
+				title: "MBit/s"
+			},
+			data: [{
+				type: "line",
+				dataPoints : dps
+			}]
+			});
+		chart.render();
+	}
 	function updateSpeed(curTime) {
 		document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
 	}
@@ -43,6 +67,8 @@
 			currentData = 0;
 			for (i in bytesPerImage) currentData += bytesPerImage[i];
 			document.getElementById("curspeed").innerHTML = (8000*currentData/1024/1024/( curTime - startTime )).toFixed(2) + "MBit/s" ;
+			dps.push({x: ( curTime - startTime )/1000, y: 8000*currentData/1024/1024/( curTime - startTime )});
+			chart.render();
 			
 		});
 		img.addEventListener("error", function(e) {
@@ -55,16 +81,28 @@
 		}
 	};
 	function addSmallImg() {
-		for (currentlyLoading = 0; currentlyLoading < maxConc; currentlyLoading++) {
+		setupChart();
+		for (currentlyLoading = 0; currentlyLoading < 10; currentlyLoading++) {
 			img = new XMLHttpRequest();
+			img.imgID = currentlyLoading;
 			img.addEventListener("load", function(e) {
 				if (this.status == 200) {
 					currentlyLoading--;
+					active = 0;
+					for (i in smallInProgress) active +=smallInProgress[i];
+					if (active>maxConc) {
+						maxConc = active;
+						document.getElementById("result").innerHTML += "Concurrent max " + maxConc + " connections<br/>";
+					}
+					smallInProgress[this.imgID]=0;
 					this.blob = null;
 					document.getElementById("progress").innerHTML += "+";
 					if (currentlyLoading == 0) addImg();	
 				}
 			}, true);
+			img.onprogress = function(e) {
+				smallInProgress[this.imgID]=1;		
+			}
 			img.open("GET", "small.jpg?"+loadedImages+Math.random(), true);
 			img.responseType = "blob";
 			img.send();
@@ -80,6 +118,8 @@
 0.00 MBit/s
 </div>
 <div id='result'>
+</div>
+<div id="chartContainer" style="height: 300px; width: 600px;">
 </div>
 </body>
 </html>
