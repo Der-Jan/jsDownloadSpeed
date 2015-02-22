@@ -1,5 +1,10 @@
-<html>
+<!DOCTYPE html>
+<html lang='en'>
 <head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.2.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="/js-speedtest/main.css">
 <title>Jans Download Test</title>
 <script type="text/javascript" src="canvasjs.min.js"></script>
 <script>
@@ -13,22 +18,27 @@
 	var inProgressImages=0;
 	var maxLoad=84;
 	var bytesPerImage = [];
-	var smallInProgress = [];
-	var dps = [{x: 0, y: 0}];
+	var smallInProgress;
+	var dps;
 	var chart;
+        var chartUpdate = null;
+	var xmlReqs = [];
+	var timerMaxDur = null;
 	
 	function setupChart() {
+		dps = [{x: 0, y: 0}];
 		chart = new CanvasJS.Chart("chartContainer",{
 			title :{
-				text: "Downloadrate"
+				text: "0.00 MBit/s"
 			},
 			axisX: {						
-				title: "time in s",
+				title: "time [s]",
 				minimum: 0,
-				maximum: 10
+				maximum: minMillis/1000+2
 			},
 			axisY: {						
-				title: "MBit/s"
+				title: "[MBit/s]",
+				minimum: 0,
 			},
 			data: [{
 				type: "line",
@@ -36,16 +46,41 @@
 			}]
 			});
 		chart.render();
-		setInterval(function() {chart.render();}, 100);
+		if (chartUpdate != null) clearInterval(chartUpdate);
+		chartUpdate = setInterval(function() {
+			chart.options.title.text = dps[dps.length-1].y.toFixed(2) + " MBit/s";
+			chart.render();
+		}, 100);
 	}
-	function updateSpeed(curTime) {
+
+	function stopAll() {
+		var curTime = Date.now();
+		if (chartUpdate != null) clearInterval(chartUpdate);
+		if (timerMaxDur != null) clearTimeout(timerMaxDur);
+		timerMaxDur = null;
+		chartUpdate = null;
+		chart.render();
+		while (i = xmlReqs.pop()) {
+			i.abort();
+		}
+		document.getElementById("progress").innerHTML += "Done!";
 		document.getElementById("result").innerHTML += " Took " + ( curTime - startTime )/1000 + "s for " + Math.round(10*imgSize*loadedImages/1024/1024)/10 + "MB - rate is " + Math.round(80000*imgSize*loadedImages/1024/1024/( curTime - startTime ))/10 + "MBit/s<br/>" ;
+		startTime = 0;
+		loadedImages = 0;
+		inProgressImages = 0;
+		bytesPerImage = [];
+	}
+
+	function removeFromReqs(req) {
+		var i = xmlReqs.indexOf(req);
+		if (i > -1) xmlReqs.splice(i, 1);
 	}
         function addImg(){
 		while ((currentlyLoading<maxConc) && (loadedImages + currentlyLoading < maxLoad)) {
 		currentlyLoading++;
 		inProgressImages++;
 		img = new XMLHttpRequest();
+		xmlReqs.push(img);
 		img.imgID=inProgressImages;
 		img.addEventListener("load", function(e) {
 			if (this.status == 200) {
@@ -54,12 +89,12 @@
 				curTime = Date.now();	
 				this.blob = null;
 				document.getElementById("progress").innerHTML += this.imgID + ".";
+				removeFromReqs(this);
 				if ( curTime - startTime < minMillis){
 					addImg();	
 				} else {
 					if (currentlyLoading == 0) {
-						document.getElementById("progress").innerHTML += "Done!";
-						updateSpeed(curTime);
+						stopAll();
 					}
 				}
 			}
@@ -69,7 +104,6 @@
 			bytesPerImage[this.imgID] = e.loaded;
 			currentData = 0;
 			for (i in bytesPerImage) currentData += bytesPerImage[i];
-			document.getElementById("curspeed").innerHTML = (8000*currentData/1024/1024/( curTime - startTime )).toFixed(2) + "MBit/s" ;
 			dps.push({x: ( curTime - startTime )/1000, y: 8000*currentData/1024/1024/( curTime - startTime )});
 			
 		});
@@ -79,10 +113,15 @@
 		img.open("GET", "passbild.jpg?"+loadedImages+Math.random(), true);
 		img.responseType = "blob";
 		img.send();
-		if (startTime == 0) startTime=Date.now();
+		if (startTime == 0) {
+			startTime=Date.now();
+			timerMaxDur = setTimeout(stopAll,minMillis+1500);
+		}
 		}
 	};
 	function addSmallImg() {
+		smallInProgress = [];
+		currentlyLoading = 0;
 		setupChart();
 		for (currentlyLoading = 0; currentlyLoading < 10; currentlyLoading++) {
 			img = new XMLHttpRequest();
@@ -112,16 +151,20 @@
 	};
 </script>
 </head>
-<body onload="addSmallImg()">
+<body onload='setupChart()'>
+<div class='page-header'>
 <h1>Jans Download Test</h1>
-<div id='progress'>
 </div>
-<div id='curspeed'>
-0.00 MBit/s
+<div id='progress'>
 </div>
 <div id='result'>
 </div>
-<div id="chartContainer" style="height: 300px; width: 600px;">
+<div id='chartContainer' style='height: 300px; width: 600px;' >
+</div>
+<div id='buttons' >
+<a class='btn btn-primary btn-lg' type='button' onclick='addSmallImg()'>Start</a>
+<a class='btn btn-primary btn-lg' type='button' onclick='stopAll()'>Stop</a>
 </div>
 </body>
 </html>
+
